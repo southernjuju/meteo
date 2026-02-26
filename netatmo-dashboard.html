@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Netatmo Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #161616;
+    --border: #242424;
+    --text: #e8e8e8;
+    --muted: #666;
+    --accent: #c8f0d8;
+    --accent2: #a8d4f0;
+    --accent3: #f0e0a8;
+    --accent4: #f0b8a8;
+    --rain: #a8c8f0;
+    --wind: #d0c8f0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  #auth-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 2rem;
+    padding: 2rem;
+  }
+
+  .auth-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .auth-title {
+    font-size: 1.5rem;
+    font-weight: 300;
+    color: var(--text);
+    text-align: center;
+  }
+
+  .auth-subtitle {
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-align: center;
+    max-width: 320px;
+    line-height: 1.6;
+  }
+
+  .auth-btn {
+    background: var(--accent);
+    color: #0f0f0f;
+    border: none;
+    padding: 0.9rem 2.5rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .auth-btn:hover { opacity: 0.85; }
+
+  .error-msg {
+    color: var(--accent4);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    text-align: center;
+    display: none;
+  }
+
+  #loading {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1rem;
+    z-index: 100;
+  }
+
+  .loading-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  #dashboard {
+    display: none;
+    padding: 1.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .station-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .clock {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .last-update {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    opacity: 0.6;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .module-card {
+    background: var(--surface);
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .module-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.2rem;
+  }
+
+  .module-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .module-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: 2px;
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .metric-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .metric-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: var(--text);
+  }
+
+  .metric-value .unit {
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-left: 2px;
+  }
+
+  .card-outdoor .metric-value.temp,
+  .card-indoor1 .metric-value.temp {
+    font-size: 3.5rem;
+    line-height: 1;
+  }
+
+  .card-outdoor .metric-value.temp { color: var(--accent2); }
+  .card-indoor1 .metric-value.temp { color: var(--accent); }
+
+  .co2-good { color: var(--accent) !important; }
+  .co2-medium { color: var(--accent3) !important; }
+  .co2-bad { color: var(--accent4) !important; }
+
+  .card-rain .metric-label { color: var(--rain); opacity: 0.7; }
+  .card-rain .metric-value { color: var(--rain); }
+  .card-rain .module-dot { background: var(--rain); }
+
+  .card-wind .metric-label { color: var(--wind); opacity: 0.7; }
+  .card-wind .metric-value { color: var(--wind); }
+  .card-wind .module-dot { background: var(--wind); }
+
+  .logout-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 0.3rem 0.8rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .logout-btn:hover { border-color: var(--muted); color: var(--text); }
+
+  .no-data { color: var(--muted); font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-logo">Netatmo</div>
+  <div class="auth-title">Dashboard météo</div>
+  <div class="auth-subtitle">Connectez-vous avec votre compte Netatmo pour afficher vos données en temps réel.</div>
+  <button class="auth-btn" onclick="startAuth()">Se connecter</button>
+  <div class="error-msg" id="error-msg">Erreur d'authentification. Veuillez réessayer.</div>
+</div>
+
+<div id="loading">
+  <div class="loading-text">Chargement des données…</div>
+</div>
+
+<div id="dashboard">
+  <div class="top-bar">
+    <div>
+      <div class="station-name" id="station-name">Ma station</div>
+      <div class="last-update" id="last-update"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <div class="clock" id="clock"></div>
+      <button class="logout-btn" onclick="logout()">Déconnexion</button>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+const CLIENT_ID = '69a01b0127352105b600c628';
+const CLIENT_SECRET = 'XIWW9GLp6M13ssyarLGHENlptMMnP';
+const REDIRECT_URI = 'https://vermillion-granita-8d93ae.netlify.app';
+const SCOPE = 'read_station';
+
+function saveTokens(a, r, e) { localStorage.setItem('na_access', a); localStorage.setItem('na_refresh', r); localStorage.setItem('na_expiry', e); }
+function getAccessToken() { return localStorage.getItem('na_access'); }
+function getRefreshToken() { return localStorage.getItem('na_refresh'); }
+function getExpiry() { return parseInt(localStorage.getItem('na_expiry') || '0'); }
+function clearTokens() { ['na_access','na_refresh','na_expiry'].forEach(k => localStorage.removeItem(k)); }
+
+function startAuth() {
+  const state = Math.random().toString(36).substring(2);
+  sessionStorage.setItem('oauth_state', state);
+  window.location.href = `https://api.netatmo.com/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(SCOPE)}&state=${state}&response_type=code&prompt=consent`;
+}
+
+async function handleCallback(code) {
+  showLoading(true);
+  try {
+    const resp = await fetch('https://api.netatmo.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'authorization_code', client_id: CLIENT_ID, client_secret: CLIENT_SECRET, code, redirect_uri: REDIRECT_URI })
+    });
+    const data = await resp.json();
+    if (data.access_token) {
+      saveTokens(data.access_token, data.refresh_token, Date.now() + data.expires_in * 1000);
+      window.history.replaceState({}, '', window.location.pathname);
+      await loadDashboard();
+    } else { showError(); }
+  } catch(e) { showError(); }
+  showLoading(false);
+}
+
+async function refreshToken() {
+  const resp = await fetch('https://api.netatmo.com/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'refresh_token', client_id: CLIENT_ID, client_secret: CLIENT_SECRET, refresh_token: getRefreshToken() })
+  });
+  const data = await resp.json();
+  if (data.access_token) { saveTokens(data.access_token, data.refresh_token, Date.now() + data.expires_in * 1000); return data.access_token; }
+  throw new Error('Refresh failed');
+}
+
+async function getValidToken() {
+  if (getExpiry() - Date.now() < 60000) return await refreshToken();
+  return getAccessToken();
+}
+
+async function loadDashboard() {
+  try {
+    const token = await getValidToken();
+    const resp = await fetch('https://api.netatmo.com/api/getstationsdata?get_favorites=false', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await resp.json();
+    if (data.body && data.body.devices) renderDashboard(data.body.devices);
+  } catch(e) { console.error(e); }
+}
+
+function windDir(deg) { return ['N','NE','E','SE','S','SO','O','NO'][Math.round(deg / 45) % 8]; }
+function co2Class(v) { return v < 1000 ? 'co2-good' : v < 1500 ? 'co2-medium' : 'co2-bad'; }
+function fmt(v) { if (v == null) return '—'; return typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(1)) : v; }
+
+function renderDashboard(devices) {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  const device = devices[0];
+  document.getElementById('station-name').textContent = device.station_name || device.home_name || 'Ma station';
+  document.getElementById('last-update').textContent = 'Mis à jour · ' + new Date(device.last_status_store * 1000).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  const modules = [];
+  if (device.dashboard_data) modules.push({ type: 'indoor', name: device.module_name || 'Intérieur', data: device.dashboard_data, css: 'card-indoor1' });
+  for (const mod of (device.modules || [])) {
+    const d = mod.dashboard_data || {};
+    if (mod.type === 'NAModule1') modules.push({ type: 'outdoor', name: mod.module_name || 'Extérieur', data: d, css: 'card-outdoor' });
+    else if (mod.type === 'NAModule4') modules.push({ type: 'indoor', name: mod.module_name || 'Intérieur', data: d, css: '' });
+    else if (mod.type === 'NAModule3') modules.push({ type: 'rain', name: mod.module_name || 'Pluie', data: d, css: 'card-rain' });
+    else if (mod.type === 'NAModule2') modules.push({ type: 'wind', name: mod.module_name || 'Vent', data: d, css: 'card-wind' });
+  }
+  for (const mod of modules) grid.appendChild(createCard(mod));
+}
+
+function createCard(mod) {
+  const card = document.createElement('div');
+  card.className = `module-card ${mod.css}`;
+  const d = mod.data;
+  let html = `<div class="module-header"><div class="module-name">${mod.name}</div><div class="module-dot"></div></div><div class="metrics">`;
+  if (mod.type === 'indoor' || mod.type === 'outdoor') {
+    html += metric('Température', `<span class="metric-value temp">${fmt(d.Temperature)}°</span>`);
+    html += metric('Humidité', val(d.Humidity, '%'));
+    if (d.CO2 != null) html += metric('CO₂', `<span class="metric-value ${co2Class(d.CO2)}">${d.CO2}<span class="unit">ppm</span></span>`);
+    if (d.Noise != null) html += metric('Bruit', val(d.Noise, 'dB'));
+    if (d.Pressure != null) html += metric('Pression', val(Math.round(d.Pressure), 'hPa'));
+  } else if (mod.type === 'rain') {
+    html += metric('Pluie maintenant', val(d.Rain, 'mm/h'));
+    html += metric('Dernière heure', val(d.sum_rain_1, 'mm'));
+    html += metric("Aujourd'hui", val(d.sum_rain_24, 'mm'));
+  } else if (mod.type === 'wind') {
+    html += metric('Vent', val(d.WindStrength, 'km/h'));
+    html += metric('Direction', `<span class="metric-value">${d.WindAngle != null ? windDir(d.WindAngle) + ' ' + d.WindAngle + '°' : '—'}</span>`);
+    html += metric('Rafales', val(d.GustStrength, 'km/h'));
+  }
+  html += '</div>';
+  card.innerHTML = html;
+  return card;
+}
+
+function metric(label, valueHtml) {
+  return `<div class="metric"><span class="metric-label">${label}</span>${valueHtml}</div>`;
+}
+
+function val(v, unit) {
+  if (v == null) return '<span class="metric-value no-data">—</span>';
+  return `<span class="metric-value">${fmt(v)}<span class="unit">${unit}</span></span>`;
+}
+
+function updateClock() {
+  const el = document.getElementById('clock');
+  if (el) el.textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', weekday: 'short', day: 'numeric', month: 'short' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+setInterval(async () => { if (getAccessToken()) await loadDashboard(); }, 5 * 60 * 1000);
+
+function showLoading(v) { document.getElementById('loading').style.display = v ? 'flex' : 'none'; }
+function showError() { showLoading(false); document.getElementById('error-msg').style.display = 'block'; }
+function logout() { clearTokens(); window.location.reload(); }
+
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (code) { await handleCallback(code); return; }
+  if (getAccessToken()) { showLoading(true); await loadDashboard(); showLoading(false); return; }
+}
+init();
+</script>
+</body>
+</html>
