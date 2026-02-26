@@ -27,8 +27,8 @@
     color: var(--text);
     font-family: 'DM Sans', sans-serif;
     font-weight: 300;
-    min-height: 100vh;
-    overflow-x: hidden;
+    height: 100vh;
+    overflow: hidden;
   }
 
   #auth-screen {
@@ -110,9 +110,10 @@
 
   #dashboard {
     display: none;
-    padding: 1.5rem;
-    max-width: 1200px;
-    margin: 0 auto;
+    padding: 1rem;
+    height: 100vh;
+    display: none;
+    flex-direction: column;
   }
 
   .top-bar {
@@ -147,9 +148,12 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
     gap: 1px;
     background: var(--border);
+    flex: 1;
+    min-height: 0;
   }
 
   .module-card {
@@ -157,6 +161,9 @@
     padding: 1.5rem;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .module-header {
@@ -250,6 +257,32 @@
   .logout-btn:hover { border-color: var(--muted); color: var(--text); }
 
   .no-data { color: var(--muted); font-size: 0.8rem; }
+  .card-clock {
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .clock-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 3rem;
+    font-weight: 400;
+    color: var(--accent3);
+    line-height: 1;
+    letter-spacing: 0.05em;
+  }
+
+  .clock-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
 </style>
 </head>
 <body>
@@ -349,7 +382,7 @@ function fmt(v) { if (v == null) return '—'; return typeof v === 'number' ? (N
 
 function renderDashboard(devices) {
   document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
+  const dash = document.getElementById('dashboard'); dash.style.display = 'flex';
   const device = devices[0];
   document.getElementById('station-name').textContent = device.station_name || device.home_name || 'Ma station';
   document.getElementById('last-update').textContent = 'Mis à jour · ' + new Date(device.last_status_store * 1000).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
@@ -365,6 +398,17 @@ function renderDashboard(devices) {
     else if (mod.type === 'NAModule2') modules.push({ type: 'wind', name: mod.module_name || 'Vent', data: d, css: 'card-wind' });
   }
   for (const mod of modules) grid.appendChild(createCard(mod));
+
+  // Add clock card if we have an even number of cells (fill the empty spot)
+  const totalCells = 4 * 2; // 4 cols x 2 rows
+  if (modules.length < totalCells) {
+    const clockCard = document.createElement('div');
+    clockCard.className = 'module-card card-clock';
+    clockCard.id = 'clock-card';
+    clockCard.innerHTML = '<div class="clock-time" id="big-clock"></div><div class="clock-date" id="big-date"></div>';
+    grid.appendChild(clockCard);
+    updateBigClock();
+  }
 }
 
 function createCard(mod) {
@@ -400,6 +444,14 @@ function val(v, unit) {
   if (v == null) return '<span class="metric-value no-data">—</span>';
   return `<span class="metric-value">${fmt(v)}<span class="unit">${unit}</span></span>`;
 }
+
+function updateBigClock() {
+  const tc = document.getElementById('big-clock');
+  const td = document.getElementById('big-date');
+  if (tc) tc.textContent = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  if (td) td.textContent = new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+}
+setInterval(updateBigClock, 1000);
 
 function updateClock() {
   const el = document.getElementById('clock');
