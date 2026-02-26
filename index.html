@@ -4,302 +4,208 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Netatmo Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0f0f0f;
-    --surface: #161616;
-    --border: #242424;
-    --text: #e8e8e8;
-    --muted: #666;
-    --accent: #c8f0d8;
-    --accent2: #a8d4f0;
-    --accent3: #f0e0a8;
-    --accent4: #f0b8a8;
-    --rain: #a8c8f0;
-    --wind: #d0c8f0;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin:0; padding:0; box-sizing:border-box; }
 
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 300;
+    font-family: 'Nunito', sans-serif;
     height: 100vh;
     overflow: hidden;
+    transition: background 2s ease;
   }
 
+  .bg-dawn {
+    background:
+      radial-gradient(ellipse at 30% 60%, rgba(255,160,50,0.5) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 30%, rgba(255,100,100,0.3) 0%, transparent 50%),
+      linear-gradient(160deg, #1a1a3a 0%, #6b3a5e 40%, #d4785a 70%, #f0b080 100%);
+  }
+  .bg-day {
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(255,220,100,0.4) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 60%, rgba(100,180,255,0.3) 0%, transparent 50%),
+      linear-gradient(160deg, #1a3a6b 0%, #2d6fa8 40%, #5ba3d0 70%, #a8d4f0 100%);
+  }
+  .bg-sunset {
+    background:
+      radial-gradient(ellipse at 20% 70%, rgba(255,120,30,0.6) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 30%, rgba(200,60,100,0.3) 0%, transparent 50%),
+      linear-gradient(160deg, #0d0d2a 0%, #3d1c4a 30%, #a03a3a 60%, #e08050 100%);
+  }
+  .bg-night {
+    background:
+      radial-gradient(ellipse at 70% 20%, rgba(255,255,180,0.15) 0%, transparent 30%),
+      radial-gradient(ellipse at 20% 80%, rgba(100,80,200,0.2) 0%, transparent 40%),
+      linear-gradient(160deg, #0a0a1a 0%, #0d1b3e 50%, #1a1040 100%);
+  }
+
+  /* AUTH */
   #auth-screen {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    gap: 2rem;
-    padding: 2rem;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; gap: 1.5rem; padding: 2rem;
   }
-
-  .auth-logo {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.75rem;
-    letter-spacing: 0.3em;
-    color: var(--muted);
-    text-transform: uppercase;
-  }
-
+  .auth-icon { font-size: 3rem; }
   .auth-title {
-    font-size: 1.5rem;
-    font-weight: 300;
-    color: var(--text);
-    text-align: center;
+    font-size: 1.8rem; font-weight: 800; color: white;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.3);
   }
-
-  .auth-subtitle {
-    font-size: 0.85rem;
-    color: var(--muted);
-    text-align: center;
-    max-width: 320px;
-    line-height: 1.6;
-  }
-
+  .auth-subtitle { font-size: 0.9rem; color: rgba(255,255,255,0.6); text-align: center; max-width: 300px; line-height: 1.6; }
   .auth-btn {
-    background: var(--accent);
-    color: #0f0f0f;
-    border: none;
-    padding: 0.9rem 2.5rem;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.75rem;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: opacity 0.2s;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(10px);
+    color: white; border: 1px solid rgba(255,255,255,0.3);
+    padding: 0.9rem 2.5rem; border-radius: 50px;
+    font-family: 'Nunito', sans-serif; font-size: 0.95rem; font-weight: 800;
+    cursor: pointer; transition: all 0.2s;
   }
-  .auth-btn:hover { opacity: 0.85; }
+  .auth-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.03); }
+  .error-msg { color: #f1948a; font-size: 0.8rem; text-align: center; display: none; }
 
-  .error-msg {
-    color: var(--accent4);
-    font-family: 'DM Mono', monospace;
-    font-size: 0.75rem;
-    text-align: center;
-    display: none;
-  }
-
+  /* LOADING */
   #loading {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: var(--bg);
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 1rem;
-    z-index: 100;
+    display: none; position: fixed; inset: 0;
+    align-items: center; justify-content: center; flex-direction: column; gap: 1rem; z-index: 100;
   }
-
-  .loading-text {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.7rem;
-    letter-spacing: 0.2em;
-    color: var(--muted);
-    text-transform: uppercase;
-    animation: blink 1s step-end infinite;
+  .loading-spinner {
+    width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.2);
+    border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite;
   }
-  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 0.85rem; color: rgba(255,255,255,0.6); }
 
+  /* STARS */
+  .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0; transition: opacity 1s; }
+  .star { position: absolute; background: white; border-radius: 50%; animation: twinkle 3s ease-in-out infinite; }
+  @keyframes twinkle { 0%,100%{opacity:0.8} 50%{opacity:0.2} }
+  body.night .stars { opacity: 1; }
+
+  /* DASHBOARD */
   #dashboard {
-    display: none;
-    padding: 1rem;
-    height: 100vh;
-    display: none;
-    flex-direction: column;
+    display: none; height: 100vh; flex-direction: column;
+    padding: 0.8rem; gap: 0.8rem; position: relative; z-index: 1;
   }
 
   .top-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.6rem 1.2rem;
+    background: rgba(255,255,255,0.1); backdrop-filter: blur(20px);
+    border-radius: 14px; border: 1px solid rgba(255,255,255,0.15);
   }
-
-  .station-name {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.7rem;
-    letter-spacing: 0.25em;
-    color: var(--muted);
-    text-transform: uppercase;
-  }
-
-  .clock {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
-
-  .last-update {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.65rem;
-    color: var(--muted);
-    opacity: 0.6;
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    gap: 1px;
-    background: var(--border);
-    flex: 1;
-    min-height: 0;
-  }
-
-  .module-card {
-    background: var(--surface);
-    padding: 1.5rem;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .module-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1.2rem;
-  }
-
-  .module-name {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.65rem;
-    letter-spacing: 0.2em;
-    color: var(--muted);
-    text-transform: uppercase;
-  }
-
-  .module-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-    margin-top: 2px;
-    animation: pulse 3s ease-in-out infinite;
-  }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-  .metrics {
-    display: flex;
-    flex-direction: column;
-    gap: 0.9rem;
-  }
-
-  .metric {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-  }
-
-  .metric-label {
-    font-size: 0.75rem;
-    color: var(--muted);
-    font-weight: 300;
-  }
-
-  .metric-value {
-    font-family: 'DM Mono', monospace;
-    font-size: 1.1rem;
-    font-weight: 400;
-    color: var(--text);
-  }
-
-  .metric-value .unit {
-    font-size: 0.65rem;
-    color: var(--muted);
-    margin-left: 2px;
-  }
-
-  .card-outdoor .metric-value.temp,
-  .card-indoor1 .metric-value.temp {
-    font-size: 3.5rem;
-    line-height: 1;
-  }
-
-  .card-outdoor .metric-value.temp { color: var(--accent2); }
-  .card-indoor1 .metric-value.temp { color: var(--accent); }
-
-  .co2-good { color: var(--accent) !important; }
-  .co2-medium { color: var(--accent3) !important; }
-  .co2-bad { color: var(--accent4) !important; }
-
-  .card-rain .metric-label { color: var(--rain); opacity: 0.7; }
-  .card-rain .metric-value { color: var(--rain); }
-  .card-rain .module-dot { background: var(--rain); }
-
-  .card-wind .metric-label { color: var(--wind); opacity: 0.7; }
-  .card-wind .metric-value { color: var(--wind); }
-  .card-wind .module-dot { background: var(--wind); }
-
+  .station-name { font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.2em; color: rgba(255,255,255,0.7); text-transform: uppercase; }
+  .last-update { font-family: 'DM Mono', monospace; font-size: 0.6rem; color: rgba(255,255,255,0.4); margin-top: 0.15rem; }
+  .top-clock { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: rgba(255,255,255,0.6); text-align: right; }
   .logout-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    padding: 0.3rem 0.8rem;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.6rem;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    transition: all 0.2s;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.5);
+    padding: 0.3rem 0.8rem; border-radius: 20px; font-family: 'Nunito', sans-serif;
+    font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
   }
-  .logout-btn:hover { border-color: var(--muted); color: var(--text); }
+  .logout-btn:hover { background: rgba(255,255,255,0.2); color: white; }
 
-  .no-data { color: var(--muted); font-size: 0.8rem; }
+  /* GRID */
+  .grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr);
+    gap: 0.8rem; flex: 1; min-height: 0;
+  }
+
+  /* GLASS CARD */
+  .card {
+    background: rgba(255,255,255,0.1); backdrop-filter: blur(20px);
+    border-radius: 18px; border: 1px solid rgba(255,255,255,0.18);
+    padding: 1rem 1.2rem;
+    display: grid; grid-template-rows: 1.5rem 1fr auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+    transition: transform 0.2s; position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 2px; border-radius: 18px 18px 0 0;
+  }
+  .card:hover { transform: translateY(-2px); }
+
+  .card-indoor1::before { background: linear-gradient(90deg, #58d68d, transparent); }
+  .card-outdoor::before { background: linear-gradient(90deg, #5dade2, transparent); }
+  .card-extra::before  { background: linear-gradient(90deg, #f0b27a, transparent); }
+  .card-rain::before   { background: linear-gradient(90deg, #7fb3d3, transparent); }
+  .card-wind::before   { background: linear-gradient(90deg, #bb8fce, transparent); }
+  .card-clock::before  { background: linear-gradient(90deg, #f4d03f, transparent); }
+
+  .card-header { display: flex; justify-content: space-between; align-items: center; }
+  .card-name { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+
+  .big-temp {
+    font-size: 3rem; font-weight: 800; line-height: 1; color: white;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    white-space: nowrap;
+  }
+  .card-indoor1 .big-temp { color: #7defa8; }
+  .card-outdoor .big-temp { color: #7dd3f8; }
+  .card-extra .big-temp  { color: #fcd4a0; }
+  .big-temp .deg { font-size: 1.8rem; opacity: 0.6; }
+
+  .metrics { display: flex; flex-direction: column; gap: 0.3rem; justify-content: flex-end; }
+  .metric {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.3rem 0.5rem; background: rgba(255,255,255,0.06); border-radius: 8px;
+  }
+  .metric-label { font-size: 0.72rem; color: rgba(255,255,255,0.5); }
+  .metric-value { font-size: 0.88rem; font-weight: 700; color: rgba(255,255,255,0.9); }
+  .metric-value .unit { font-size: 0.6rem; opacity: 0.6; margin-left: 1px; }
+
+  .co2-good { color: #7defa8 !important; }
+  .co2-med  { color: #f4d03f !important; }
+  .co2-bad  { color: #f1948a !important; }
+
+  /* RAIN / WIND */
+  .card-rain, .card-wind { display: grid; grid-template-rows: 1.5rem 1fr; }
+  .card-rain .metrics, .card-wind .metrics { display: flex; flex-direction: column; justify-content: center; gap: 0.6rem; }
+  .card-rain .metric, .card-wind .metric { padding: 0.5rem 0.8rem; border-radius: 10px; }
+  .card-rain .metric-label, .card-wind .metric-label { font-size: 0.78rem; }
+  .card-rain .metric-value, .card-wind .metric-value { font-size: 1.1rem; font-weight: 800; color: white; }
+
+  /* CLOCK */
   .card-clock {
-    background: var(--surface);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
     grid-column: span 2;
+    display: flex !important; flex-direction: column !important;
+    align-items: center; justify-content: center; gap: 0.6rem;
+  }
+  .big-clock {
+    font-family: 'DM Mono', monospace; font-size: 4.5rem; font-weight: 400;
+    color: #f4d03f; text-shadow: 0 0 40px rgba(244,208,63,0.4);
+    line-height: 1; letter-spacing: 0.05em;
+  }
+  .big-date {
+    font-family: 'DM Mono', monospace; font-size: 1rem;
+    color: rgba(255,255,255,0.5); letter-spacing: 0.2em; text-transform: uppercase;
   }
 
-  .clock-time {
-    font-family: 'DM Mono', monospace;
-    font-size: 5rem;
-    font-weight: 400;
-    color: var(--accent3);
-    line-height: 1;
-    letter-spacing: 0.05em;
-  }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #58d68d; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-  .clock-date {
-    font-family: 'DM Mono', monospace;
-    font-size: 1.1rem;
-    color: var(--muted);
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-  }
-
+  .no-data { color: rgba(255,255,255,0.3); }
 </style>
 </head>
-<body>
+<body class="bg-day">
 
+<div class="stars" id="stars"></div>
+
+<!-- AUTH -->
 <div id="auth-screen">
-  <div class="auth-logo">Netatmo</div>
-  <div class="auth-title">Dashboard météo</div>
+  <div class="auth-icon">🌤️</div>
+  <div class="auth-title">Dashboard Météo</div>
   <div class="auth-subtitle">Connectez-vous avec votre compte Netatmo pour afficher vos données en temps réel.</div>
-  <button class="auth-btn" onclick="startAuth()">Se connecter</button>
+  <button class="auth-btn" onclick="startAuth()">Se connecter avec Netatmo</button>
   <div class="error-msg" id="error-msg">Erreur d'authentification. Veuillez réessayer.</div>
 </div>
 
+<!-- LOADING -->
 <div id="loading">
-  <div class="loading-text">Chargement des données…</div>
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Chargement…</div>
 </div>
 
+<!-- DASHBOARD -->
 <div id="dashboard">
   <div class="top-bar">
     <div>
@@ -307,7 +213,7 @@
       <div class="last-update" id="last-update"></div>
     </div>
     <div style="display:flex;align-items:center;gap:1rem;">
-      <div class="clock" id="clock"></div>
+      <div class="top-clock" id="top-clock"></div>
       <button class="logout-btn" onclick="logout()">Déconnexion</button>
     </div>
   </div>
@@ -315,162 +221,177 @@
 </div>
 
 <script>
-const CLIENT_ID = '69a01b0127352105b600c628';
+const CLIENT_ID     = '69a01b0127352105b600c628';
 const CLIENT_SECRET = 'XIWW9GLp6M13ssyarLGHENlptMMnP';
-const REDIRECT_URI = 'https://southernjuju.github.io/meteo';
-const SCOPE = 'read_station';
+const REDIRECT_URI  = 'https://southernjuju.github.io/meteo';
+const SCOPE         = 'read_station';
 
-function saveTokens(a, r, e) { localStorage.setItem('na_access', a); localStorage.setItem('na_refresh', r); localStorage.setItem('na_expiry', e); }
-function getAccessToken() { return localStorage.getItem('na_access'); }
-function getRefreshToken() { return localStorage.getItem('na_refresh'); }
-function getExpiry() { return parseInt(localStorage.getItem('na_expiry') || '0'); }
-function clearTokens() { ['na_access','na_refresh','na_expiry'].forEach(k => localStorage.removeItem(k)); }
+function saveTokens(a,r,e){localStorage.setItem('na_access',a);localStorage.setItem('na_refresh',r);localStorage.setItem('na_expiry',e);}
+function getAccessToken(){return localStorage.getItem('na_access');}
+function getRefreshToken(){return localStorage.getItem('na_refresh');}
+function getExpiry(){return parseInt(localStorage.getItem('na_expiry')||'0');}
+function clearTokens(){['na_access','na_refresh','na_expiry'].forEach(k=>localStorage.removeItem(k));}
 
-function startAuth() {
-  const state = Math.random().toString(36).substring(2);
-  sessionStorage.setItem('oauth_state', state);
-  window.location.href = `https://api.netatmo.com/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(SCOPE)}&state=${state}&response_type=code&prompt=consent`;
+function startAuth(){
+  const state=Math.random().toString(36).substring(2);
+  sessionStorage.setItem('oauth_state',state);
+  window.location.href=`https://api.netatmo.com/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(SCOPE)}&state=${state}&response_type=code&prompt=consent`;
 }
 
-async function handleCallback(code) {
+async function handleCallback(code){
   showLoading(true);
-  try {
-    const resp = await fetch('https://api.netatmo.com/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ grant_type: 'authorization_code', client_id: CLIENT_ID, client_secret: CLIENT_SECRET, code, redirect_uri: REDIRECT_URI })
-    });
-    const data = await resp.json();
-    if (data.access_token) {
-      saveTokens(data.access_token, data.refresh_token, Date.now() + data.expires_in * 1000);
-      window.history.replaceState({}, '', window.location.pathname);
-      await loadDashboard();
-    } else { showError(); }
-  } catch(e) { showError(); }
+  try{
+    const resp=await fetch('https://api.netatmo.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'authorization_code',client_id:CLIENT_ID,client_secret:CLIENT_SECRET,code,redirect_uri:REDIRECT_URI})});
+    const data=await resp.json();
+    if(data.access_token){saveTokens(data.access_token,data.refresh_token,Date.now()+data.expires_in*1000);window.history.replaceState({},'',window.location.pathname);await loadDashboard();}
+    else showError();
+  }catch(e){showError();}
   showLoading(false);
 }
 
-async function refreshToken() {
-  const resp = await fetch('https://api.netatmo.com/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ grant_type: 'refresh_token', client_id: CLIENT_ID, client_secret: CLIENT_SECRET, refresh_token: getRefreshToken() })
-  });
-  const data = await resp.json();
-  if (data.access_token) { saveTokens(data.access_token, data.refresh_token, Date.now() + data.expires_in * 1000); return data.access_token; }
+async function refreshToken(){
+  const resp=await fetch('https://api.netatmo.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',client_id:CLIENT_ID,client_secret:CLIENT_SECRET,refresh_token:getRefreshToken()})});
+  const data=await resp.json();
+  if(data.access_token){saveTokens(data.access_token,data.refresh_token,Date.now()+data.expires_in*1000);return data.access_token;}
   throw new Error('Refresh failed');
 }
 
-async function getValidToken() {
-  if (getExpiry() - Date.now() < 60000) return await refreshToken();
+async function getValidToken(){
+  if(getExpiry()-Date.now()<60000)return await refreshToken();
   return getAccessToken();
 }
 
-async function loadDashboard() {
-  try {
-    const token = await getValidToken();
-    const resp = await fetch('https://api.netatmo.com/api/getstationsdata?get_favorites=false', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await resp.json();
-    if (data.body && data.body.devices) renderDashboard(data.body.devices);
-  } catch(e) { console.error(e); }
+async function loadDashboard(){
+  try{
+    const token=await getValidToken();
+    const resp=await fetch('https://api.netatmo.com/api/getstationsdata?get_favorites=false',{headers:{Authorization:`Bearer ${token}`}});
+    const data=await resp.json();
+    if(data.body&&data.body.devices)renderDashboard(data.body.devices);
+  }catch(e){console.error(e);}
 }
 
-function windDir(deg) { return ['N','NE','E','SE','S','SO','O','NO'][Math.round(deg / 45) % 8]; }
-function co2Class(v) { return v < 1000 ? 'co2-good' : v < 1500 ? 'co2-medium' : 'co2-bad'; }
-function fmt(v) { if (v == null) return '—'; return typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(1)) : v; }
+function windDir(deg){return['N','NE','E','SE','S','SO','O','NO'][Math.round(deg/45)%8];}
+function co2Class(v){return v<1000?'co2-good':v<1500?'co2-med':'co2-bad';}
+function fmt(v){if(v==null)return'—';return typeof v==='number'?(Number.isInteger(v)?v:v.toFixed(1)):v;}
 
-function renderDashboard(devices) {
-  document.getElementById('auth-screen').style.display = 'none';
-  const dash = document.getElementById('dashboard'); dash.style.display = 'flex';
-  const device = devices[0];
-  document.getElementById('station-name').textContent = device.station_name || device.home_name || 'Ma station';
-  document.getElementById('last-update').textContent = 'Mis à jour · ' + new Date(device.last_status_store * 1000).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-  const grid = document.getElementById('grid');
-  grid.innerHTML = '';
-  const modules = [];
-  if (device.dashboard_data) modules.push({ type: 'indoor', name: device.module_name || 'Intérieur', data: device.dashboard_data, css: 'card-indoor1' });
-  for (const mod of (device.modules || [])) {
-    const d = mod.dashboard_data || {};
-    if (mod.type === 'NAModule1') modules.push({ type: 'outdoor', name: mod.module_name || 'Extérieur', data: d, css: 'card-outdoor' });
-    else if (mod.type === 'NAModule4') modules.push({ type: 'indoor', name: mod.module_name || 'Intérieur', data: d, css: '' });
-    else if (mod.type === 'NAModule3') modules.push({ type: 'rain', name: mod.module_name || 'Pluie', data: d, css: 'card-rain' });
-    else if (mod.type === 'NAModule2') modules.push({ type: 'wind', name: mod.module_name || 'Vent', data: d, css: 'card-wind' });
-  }
-  for (const mod of modules) grid.appendChild(createCard(mod));
+const MODULE_ICONS = { indoor1:'🏠', outdoor:'🌡️', extra:'🚪', rain:'🌧️', wind:'💨' };
 
-  // Add clock card if we have an even number of cells (fill the empty spot)
-  const totalCells = 4 * 2; // 4 cols x 2 rows
-  if (modules.length < totalCells) {
-    const clockCard = document.createElement('div');
-    clockCard.className = 'module-card card-clock';
-    clockCard.id = 'clock-card';
-    clockCard.innerHTML = '<div class="clock-time" id="big-clock"></div><div class="clock-date" id="big-date"></div>';
-    grid.appendChild(clockCard);
-    updateBigClock();
+function renderDashboard(devices){
+  document.getElementById('auth-screen').style.display='none';
+  const dash=document.getElementById('dashboard'); dash.style.display='flex';
+  const device=devices[0];
+  document.getElementById('station-name').textContent=(device.station_name||device.home_name||'Ma station').toUpperCase();
+  document.getElementById('last-update').textContent='🔄 Mis à jour à '+new Date(device.last_status_store*1000).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  const grid=document.getElementById('grid');
+  grid.innerHTML='';
+  const modules=[];
+  if(device.dashboard_data)modules.push({type:'indoor1',name:device.module_name||'Intérieur',data:device.dashboard_data,css:'card-indoor1'});
+  for(const mod of(device.modules||[])){
+    const d=mod.dashboard_data||{};
+    if(mod.type==='NAModule1')modules.push({type:'outdoor',name:mod.module_name||'Extérieur',data:d,css:'card-outdoor'});
+    else if(mod.type==='NAModule4')modules.push({type:'extra',name:mod.module_name||'Intérieur',data:d,css:'card-extra'});
+    else if(mod.type==='NAModule3')modules.push({type:'rain',name:mod.module_name||'Pluie',data:d,css:'card-rain'});
+    else if(mod.type==='NAModule2')modules.push({type:'wind',name:mod.module_name||'Vent',data:d,css:'card-wind'});
   }
+  for(const mod of modules)grid.appendChild(createCard(mod));
+  // Clock card
+  const clockCard=document.createElement('div');
+  clockCard.className='card card-clock';
+  clockCard.innerHTML='<div class="big-clock" id="big-clock"></div><div class="big-date" id="big-date"></div>';
+  grid.appendChild(clockCard);
+  updateBigClock();
 }
 
-function createCard(mod) {
-  const card = document.createElement('div');
-  card.className = `module-card ${mod.css}`;
-  const d = mod.data;
-  let html = `<div class="module-header"><div class="module-name">${mod.name}</div><div class="module-dot"></div></div><div class="metrics">`;
-  if (mod.type === 'indoor' || mod.type === 'outdoor') {
-    html += metric('Température', `<span class="metric-value temp">${fmt(d.Temperature)}°</span>`);
-    html += metric('Humidité', val(d.Humidity, '%'));
-    if (d.CO2 != null) html += metric('CO₂', `<span class="metric-value ${co2Class(d.CO2)}">${d.CO2}<span class="unit">ppm</span></span>`);
-    if (d.Noise != null) html += metric('Bruit', val(d.Noise, 'dB'));
-    if (d.Pressure != null) html += metric('Pression', val(Math.round(d.Pressure), 'hPa'));
-  } else if (mod.type === 'rain') {
-    html += metric('Pluie maintenant', val(d.Rain, 'mm/h'));
-    html += metric('Dernière heure', val(d.sum_rain_1, 'mm'));
-    html += metric("Aujourd'hui", val(d.sum_rain_24, 'mm'));
-  } else if (mod.type === 'wind') {
-    html += metric('Vent', val(d.WindStrength, 'km/h'));
-    html += metric('Direction', `<span class="metric-value">${d.WindAngle != null ? windDir(d.WindAngle) + ' ' + d.WindAngle + '°' : '—'}</span>`);
-    html += metric('Rafales', val(d.GustStrength, 'km/h'));
+function createCard(mod){
+  const card=document.createElement('div');
+  card.className=`card ${mod.css}`;
+  const d=mod.data;
+  const icon=MODULE_ICONS[mod.type]||'📊';
+  let html=`<div class="card-header"><span class="card-name">${icon} ${mod.name}</span><div class="live-dot" style="background:${dotColor(mod.type)}"></div></div>`;
+
+  if(['indoor1','outdoor','extra'].includes(mod.type)){
+    html+=`<div class="big-temp">${fmt(d.Temperature)}<span class="deg">°C</span></div>`;
+    html+='<div class="metrics">';
+    html+=mrow('💧','Humidité',fmt(d.Humidity),'%');
+    if(d.CO2!=null)html+=`<div class="metric"><span class="metric-label">🌬️ CO₂</span><span class="metric-value ${co2Class(d.CO2)}">${d.CO2}<span class="unit"> ppm</span></span></div>`;
+    if(d.Noise!=null)html+=mrow('🔊','Bruit',fmt(d.Noise),'dB');
+    if(d.Pressure!=null)html+=mrow('⏱️','Pression',Math.round(d.Pressure),'hPa');
+    html+='</div>';
+  } else if(mod.type==='rain'){
+    html+='<div class="metrics">';
+    html+=mrow('🌧️','Maintenant',fmt(d.Rain),'mm/h');
+    html+=mrow('⏱️','Dernière heure',fmt(d.sum_rain_1),'mm');
+    html+=mrow('📅',"Aujourd'hui",fmt(d.sum_rain_24),'mm');
+    html+='</div>';
+  } else if(mod.type==='wind'){
+    html+='<div class="metrics">';
+    html+=mrow('💨','Vitesse',fmt(d.WindStrength),'km/h');
+    html+=mrow('🧭','Direction',d.WindAngle!=null?`${windDir(d.WindAngle)} ${d.WindAngle}°`:'—','');
+    html+=mrow('⚡','Rafales',fmt(d.GustStrength),'km/h');
+    html+='</div>';
   }
-  html += '</div>';
-  card.innerHTML = html;
+  card.innerHTML=html;
   return card;
 }
 
-function metric(label, valueHtml) {
-  return `<div class="metric"><span class="metric-label">${label}</span>${valueHtml}</div>`;
+function dotColor(type){
+  return {indoor1:'#58d68d',outdoor:'#5dade2',extra:'#f0b27a',rain:'#7fb3d3',wind:'#bb8fce'}[type]||'#58d68d';
 }
 
-function val(v, unit) {
-  if (v == null) return '<span class="metric-value no-data">—</span>';
-  return `<span class="metric-value">${fmt(v)}<span class="unit">${unit}</span></span>`;
+function mrow(ico,label,value,unit){
+  return `<div class="metric"><span class="metric-label">${ico} ${label}</span><span class="metric-value">${value}<span class="unit">${unit}</span></span></div>`;
 }
 
-function updateBigClock() {
-  const tc = document.getElementById('big-clock');
-  const td = document.getElementById('big-date');
-  if (tc) tc.textContent = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-  if (td) td.textContent = new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+// Clocks
+function updateBigClock(){
+  const tc=document.getElementById('big-clock');
+  const td=document.getElementById('big-date');
+  if(tc)tc.textContent=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(td)td.textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
 }
-setInterval(updateBigClock, 1000);
+setInterval(updateBigClock,1000);
 
-function updateClock() {
-  const el = document.getElementById('clock');
-  if (el) el.textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', weekday: 'short', day: 'numeric', month: 'short' });
+function updateTopClock(){
+  const tt=document.getElementById('top-clock');
+  if(tt)tt.textContent=new Date().toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+' · '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 }
-setInterval(updateClock, 1000);
-updateClock();
-setInterval(async () => { if (getAccessToken()) await loadDashboard(); }, 5 * 60 * 1000);
+setInterval(updateTopClock,1000);
+updateTopClock();
 
-function showLoading(v) { document.getElementById('loading').style.display = v ? 'flex' : 'none'; }
-function showError() { showLoading(false); document.getElementById('error-msg').style.display = 'block'; }
-function logout() { clearTokens(); window.location.reload(); }
+// Auto theme
+function autoTheme(){
+  const h=new Date().getHours();
+  let t;
+  if(h>=6&&h<8)t='dawn';
+  else if(h>=8&&h<18)t='day';
+  else if(h>=18&&h<21)t='sunset';
+  else t='night';
+  document.body.className='bg-'+t+(t==='night'?' night':'');
+}
+autoTheme();
+setInterval(autoTheme,60000);
 
-async function init() {
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get('code');
-  if (code) { await handleCallback(code); return; }
-  if (getAccessToken()) { showLoading(true); await loadDashboard(); showLoading(false); return; }
+// Stars
+const starsEl=document.getElementById('stars');
+for(let i=0;i<80;i++){
+  const s=document.createElement('div');s.className='star';
+  const sz=Math.random()*2.5+0.5;
+  s.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;animation-delay:${Math.random()*3}s;animation-duration:${2+Math.random()*3}s`;
+  starsEl.appendChild(s);
+}
+
+// Data refresh
+setInterval(async()=>{if(getAccessToken())await loadDashboard();},5*60*1000);
+
+function showLoading(v){document.getElementById('loading').style.display=v?'flex':'none';}
+function showError(){showLoading(false);document.getElementById('error-msg').style.display='block';}
+function logout(){clearTokens();window.location.reload();}
+
+async function init(){
+  const params=new URLSearchParams(window.location.search);
+  const code=params.get('code');
+  if(code){await handleCallback(code);return;}
+  if(getAccessToken()){showLoading(true);await loadDashboard();showLoading(false);return;}
 }
 init();
 </script>
