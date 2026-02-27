@@ -131,26 +131,26 @@
   .card-clock::before  { background: linear-gradient(90deg, #f4d03f, transparent); }
 
   .card-header { display: flex; justify-content: space-between; align-items: center; }
-  .card-name { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+  .card-name { font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
 
   .big-temp {
-    font-size: 3rem; font-weight: 800; line-height: 1; color: white;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 4.5rem; font-weight: 800; line-height: 1; color: white;
+    text-shadow: 0 2px 15px rgba(0,0,0,0.3);
+    position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%);
     white-space: nowrap;
   }
   .card-indoor1 .big-temp { color: #7defa8; }
   .card-outdoor .big-temp { color: #7dd3f8; }
   .card-extra .big-temp  { color: #fcd4a0; }
-  .big-temp .deg { font-size: 1.8rem; opacity: 0.6; }
+  .big-temp .deg { font-size: 2.5rem; opacity: 0.6; }
 
   .metrics { display: flex; flex-direction: column; gap: 0.3rem; justify-content: flex-end; }
   .metric {
     display: flex; justify-content: space-between; align-items: center;
     padding: 0.3rem 0.5rem; background: rgba(255,255,255,0.06); border-radius: 8px;
   }
-  .metric-label { font-size: 0.72rem; color: rgba(255,255,255,0.5); }
-  .metric-value { font-size: 0.88rem; font-weight: 700; color: rgba(255,255,255,0.9); }
+  .metric-label { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+  .metric-value { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,0.9); }
   .metric-value .unit { font-size: 0.6rem; opacity: 0.6; margin-left: 1px; }
 
   .co2-good { color: #7defa8 !important; }
@@ -172,12 +172,12 @@
     align-items: center; justify-content: center; gap: 0.6rem;
   }
   .big-clock {
-    font-family: 'DM Mono', monospace; font-size: 4.5rem; font-weight: 400;
+    font-family: 'DM Mono', monospace; font-size: 6rem; font-weight: 400;
     color: #f4d03f; text-shadow: 0 0 40px rgba(244,208,63,0.4);
     line-height: 1; letter-spacing: 0.05em;
   }
   .big-date {
-    font-family: 'DM Mono', monospace; font-size: 1rem;
+    font-family: 'DM Mono', monospace; font-size: 1.3rem;
     color: rgba(255,255,255,0.5); letter-spacing: 0.2em; text-transform: uppercase;
   }
 
@@ -185,6 +185,7 @@
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
   .no-data { color: rgba(255,255,255,0.3); }
+  .metric.empty { background: transparent !important; }
 
   /* RAIN FORECAST */
   .forecast-label {
@@ -290,20 +291,33 @@ async function getValidToken(){
 async function loadDashboard(){
   try{
     const token=await getValidToken();
-    const [stationResp, rainResp] = await Promise.all([
-      fetch('https://api.netatmo.com/api/getstationsdata?get_favorites=false',{headers:{Authorization:`Bearer ${token}`}}),
-      fetch('https://api.netatmo.com/api/getforecast',{headers:{Authorization:`Bearer ${token}`}}).catch(()=>null)
-    ]);
+    const stationResp=await fetch('https://api.netatmo.com/api/getstationsdata?get_favorites=false',{headers:{Authorization:`Bearer ${token}`}});
     const data=await stationResp.json();
-    let rainForecast = null;
-    if(rainResp){
-      try {
-        const rainData = await rainResp.json();
-        if(rainData.body && rainData.body.rain_strength) rainForecast = rainData.body.rain_strength;
-      } catch(e){}
+    if(data.body&&data.body.devices){
+      const device=data.body.devices[0];
+      const lat=device.place&&device.place.location?device.place.location[1]:47.28;
+      const lon=device.place&&device.place.location?device.place.location[0]:-1.78;
+      const rainForecast=await fetchRainForecast(lat,lon);
+      renderDashboard(data.body.devices, rainForecast);
     }
-    if(data.body&&data.body.devices) renderDashboard(data.body.devices, rainForecast);
   }catch(e){console.error(e);}
+}
+
+async function fetchRainForecast(lat, lon){
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&minutely_15=precipitation&forecast_minutely_15=5&models=meteofrance_seamless`;
+    const resp=await fetch(url);
+    const data=await resp.json();
+    if(data.minutely_15&&data.minutely_15.precipitation){
+      // Get next 60 min = 4 values of 15min each, interpolated to 12 bars of 5min
+      const vals=data.minutely_15.precipitation.slice(0,4);
+      // Interpolate 4x15min into 12x5min
+      const bars=[];
+      vals.forEach(v=>{ bars.push(v,v,v); });
+      return bars;
+    }
+  }catch(e){console.error('Open-Meteo error',e);}
+  return null;
 }
 
 
@@ -372,10 +386,14 @@ function createCard(mod){
   if(['indoor1','outdoor','extra'].includes(mod.type)){
     html+=`<div class="big-temp">${fmt(d.Temperature)}<span class="deg">°C</span></div>`;
     html+='<div class="metrics">';
+    // Fixed rows for alignment across cards
     html+=mrow('💧','Humidité',fmt(d.Humidity),'%');
-    if(d.CO2!=null)html+=`<div class="metric"><span class="metric-label">🌬️ CO₂</span><span class="metric-value ${co2Class(d.CO2)}">${d.CO2}<span class="unit"> ppm</span></span></div>`;
-    if(d.Noise!=null)html+=mrow('🔊','Bruit',fmt(d.Noise),'dB');
-    if(d.Pressure!=null)html+=mrow('⏱️','Pression',Math.round(d.Pressure),'hPa');
+    if(d.CO2!=null) html+=`<div class="metric"><span class="metric-label">🌬️ CO₂</span><span class="metric-value ${co2Class(d.CO2)}">${d.CO2}<span class="unit"> ppm</span></span></div>`;
+    else html+=mrowEmpty();
+    if(d.Noise!=null) html+=mrow('🔊','Bruit',fmt(d.Noise),'dB');
+    else html+=mrowEmpty();
+    if(d.Pressure!=null) html+=mrow('⏱️','Pression',Math.round(d.Pressure),'hPa');
+    else html+=mrowEmpty();
     html+='</div>';
   } else if(mod.type==='rain'){
     html+=`<div class="metrics">`;
@@ -403,6 +421,7 @@ function dotColor(type){
   return {indoor1:'#58d68d',outdoor:'#5dade2',extra:'#f0b27a',rain:'#7fb3d3',wind:'#bb8fce'}[type]||'#58d68d';
 }
 
+function mrowEmpty(){ return `<div class="metric empty"><span class="metric-label" style="opacity:0">—</span><span class="metric-value" style="opacity:0">—</span></div>`; }
 function mrow(ico,label,value,unit){
   return `<div class="metric"><span class="metric-label">${ico} ${label}</span><span class="metric-value">${value}<span class="unit">${unit}</span></span></div>`;
 }
