@@ -185,6 +185,21 @@
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
   .no-data { color: rgba(255,255,255,0.3); }
+
+  /* SUN ARC */
+  .sun-arc-wrap { width: 100%; margin-top: 0.6rem; }
+  .sun-arc-svg { width: 100%; overflow: visible; }
+  .arc-dashed { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 1.5; stroke-dasharray: 4 4; }
+  .arc-glow { fill: none; stroke: rgba(244,208,63,0.35); stroke-width: 3; stroke-linecap: round; }
+  .sun-labels {
+    display: flex; justify-content: space-between;
+    margin-top: 0.3rem; padding: 0 0.5rem;
+  }
+  .sun-time {
+    font-family: 'DM Mono', monospace; font-size: 1rem;
+    color: rgba(255,255,255,0.5);
+  }
+
   .metric.empty { background: transparent !important; }
 
   /* RAIN FORECAST */
@@ -297,30 +312,114 @@ async function loadDashboard(){
       const device=data.body.devices[0];
       const lat=device.place&&device.place.location?device.place.location[1]:47.28;
       const lon=device.place&&device.place.location?device.place.location[0]:-1.78;
-      const rainForecast=await fetchRainForecast(lat,lon);
-      renderDashboard(data.body.devices, rainForecast);
+      const meteo=await fetchOpenMeteo(lat,lon);
+      renderDashboard(data.body.devices, meteo);
     }
   }catch(e){console.error(e);}
 }
 
-async function fetchRainForecast(lat, lon){
+async function fetchOpenMeteo(lat, lon){
   try{
-    const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&minutely_15=precipitation&forecast_minutely_15=5&models=meteofrance_seamless`;
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&minutely_15=precipitation&hourly=windspeed_10m&daily=sunrise,sunset&forecast_minutely_15=5&forecast_days=1&timezone=auto&models=meteofrance_seamless`;
     const resp=await fetch(url);
     const data=await resp.json();
+    const result={rainForecast:null, windSpeed:null, sunrise:null, sunset:null};
+
+    // Rain forecast bars
     if(data.minutely_15&&data.minutely_15.precipitation){
-      // Get next 60 min = 4 values of 15min each, interpolated to 12 bars of 5min
       const vals=data.minutely_15.precipitation.slice(0,4);
-      // Interpolate 4x15min into 12x5min
       const bars=[];
       vals.forEach(v=>{ bars.push(v,v,v); });
-      return bars;
+      result.rainForecast=bars;
     }
+
+    // Current wind speed (first hourly value)
+    if(data.hourly&&data.hourly.windspeed_10m){
+      const h=new Date().getHours();
+      result.windSpeed=data.hourly.windspeed_10m[h];
+    }
+
+    // Sunrise/sunset
+    if(data.daily){
+      result.sunrise=data.daily.sunrise?data.daily.sunrise[0]:null;
+      result.sunset=data.daily.sunset?data.daily.sunset[0]:null;
+    }
+
+    return result;
   }catch(e){console.error('Open-Meteo error',e);}
-  return null;
+  return {};
 }
 
 
+
+function feelsLike(temp, humidity, windKmh){
+  // Wind chill (when cold) + heat index (when warm)
+  const wind = windKmh || 0;
+  if(temp <= 10 && wind > 4.8){
+    // Wind chill formula
+    const wc = 13.12 + 0.6215*temp - 11.37*Math.pow(wind,0.16) + 0.3965*temp*Math.pow(wind,0.16);
+    return Math.round(wc*10)/10;
+  } else if(temp >= 27){
+    // Heat index
+    const hi = -8.78469475556 + 1.61139411*temp + 2.3385248*humidity
+               - 0.14611605*temp*humidity - 0.012308094*temp*temp
+               - 0.016424828*humidity*humidity + 0.002211732*temp*temp*humidity
+               + 0.00072546*temp*humidity*humidity - 0.000003582*temp*temp*humidity*humidity;
+    return Math.round(hi*10)/10;
+  }
+  return fmt(temp);
+}
+
+function initSunArc(sunriseStr, sunsetStr){
+  const rise=new Date(sunriseStr);
+  const set=new Date(sunsetStr);
+  window._sunrise=rise; window._sunset=set;
+  updateSunArc();
+  setInterval(updateSunArc, 30000);
+  // Update labels
+  const pad=n=>n.toString().padStart(2,'0');
+  const rLabel=document.getElementById('sunrise-label');
+  const sLabel=document.getElementById('sunset-label');
+  if(rLabel) rLabel.textContent=pad(rise.getHours())+':'+pad(rise.getMinutes());
+  if(sLabel) sLabel.textContent=pad(set.getHours())+':'+pad(set.getMinutes());
+}
+
+function arcPoint(t, w=300, h=62, margin=10){
+  const x=margin+t*(w-2*margin);
+  const y=h-Math.sin(t*Math.PI)*(h-8);
+  return {x,y};
+}
+
+function buildArcPath(from=0, to=1, steps=60){
+  let d='';
+  for(let i=0;i<=steps;i++){
+    const t=from+(to-from)*(i/steps);
+    const p=arcPoint(t);
+    d+=(i===0?'M':'L')+p.x.toFixed(1)+','+p.y.toFixed(1)+' ';
+  }
+  return d;
+}
+
+function updateSunArc(){
+  if(!window._sunrise||!window._sunset) return;
+  const now=new Date();
+  const nowMs=now.getTime();
+  const riseMs=window._sunrise.getTime();
+  const setMs=window._sunset.getTime();
+  let t=(nowMs-riseMs)/(setMs-riseMs);
+  t=Math.max(0,Math.min(1,t));
+  const bgEl=document.getElementById('arc-bg');
+  const pgEl=document.getElementById('arc-progress');
+  const sunEl=document.getElementById('sun-icon');
+  if(bgEl) bgEl.setAttribute('d',buildArcPath(0,1));
+  if(pgEl) pgEl.setAttribute('d',buildArcPath(0,t));
+  if(sunEl){
+    const pos=arcPoint(t);
+    sunEl.setAttribute('x',pos.x);
+    sunEl.setAttribute('y',pos.y);
+    sunEl.textContent=(t>0&&t<1)?'☀️':'🌙';
+  }
+}
 function renderRainBars(forecast){
   const el = document.getElementById('rain-bars');
   if(!el) return;
@@ -350,7 +449,7 @@ function fmt(v){if(v==null)return'—';return typeof v==='number'?(Number.isInte
 
 const MODULE_ICONS = { indoor1:'🏠', outdoor:'🌡️', extra:'🚪', rain:'🌧️', wind:'💨' };
 
-function renderDashboard(devices, rainForecast){
+function renderDashboard(devices, meteo){
   document.getElementById('auth-screen').style.display='none';
   const dash=document.getElementById('dashboard'); dash.style.display='flex';
   const device=devices[0];
@@ -362,16 +461,32 @@ function renderDashboard(devices, rainForecast){
   if(device.dashboard_data)modules.push({type:'indoor1',name:device.module_name||'Intérieur',data:device.dashboard_data,css:'card-indoor1'});
   for(const mod of(device.modules||[])){
     const d=mod.dashboard_data||{};
-    if(mod.type==='NAModule1')modules.push({type:'outdoor',name:mod.module_name||'Extérieur',data:d,css:'card-outdoor'});
+    if(mod.type==='NAModule1')modules.push({type:'outdoor',name:mod.module_name||'Extérieur',data:d,css:'card-outdoor',windSpeed:meteo.windSpeed});
     else if(mod.type==='NAModule4')modules.push({type:'extra',name:mod.module_name||'Intérieur',data:d,css:'card-extra'});
     else if(mod.type==='NAModule3')modules.push({type:'rain',name:mod.module_name||'Pluie',data:d,css:'card-rain',forecast:rainForecast});
     else if(mod.type==='NAModule2')modules.push({type:'wind',name:mod.module_name||'Vent',data:d,css:'card-wind'});
   }
-  for(const mod of modules){const c=createCard(mod);grid.appendChild(c);if(mod.type==="rain")renderRainBars(mod.forecast);}
+  for(const mod of modules){const c=createCard(mod);grid.appendChild(c);if(mod.type==="rain")renderRainBars(meteo.rainForecast);}
   // Clock card
   const clockCard=document.createElement('div');
   clockCard.className='card card-clock';
-  clockCard.innerHTML='<div class="big-clock" id="big-clock"></div><div class="big-date" id="big-date"></div>';
+  clockCard.innerHTML=`
+    <div class="big-clock" id="big-clock"></div>
+    <div class="big-date" id="big-date"></div>
+    <div class="sun-arc-wrap">
+      <svg class="sun-arc-svg" id="sun-svg" viewBox="0 0 300 70" preserveAspectRatio="none">
+        <path class="arc-dashed" id="arc-bg" d=""/>
+        <path class="arc-glow" id="arc-progress" d=""/>
+        <line x1="10" y1="62" x2="290" y2="62" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        <text id="sun-icon" font-size="16" text-anchor="middle" dominant-baseline="middle"></text>
+      </svg>
+      <div class="sun-labels">
+        <span class="sun-time" id="sunrise-label"></span>
+        <span class="sun-time" id="sunset-label"></span>
+      </div>
+    </div>
+  `;
+  if(meteo.sunrise&&meteo.sunset) initSunArc(meteo.sunrise, meteo.sunset);
   grid.appendChild(clockCard);
   updateBigClock();
 }
@@ -388,8 +503,13 @@ function createCard(mod){
     html+='<div class="metrics">';
     // Fixed rows for alignment across cards
     html+=mrow('💧','Humidité',fmt(d.Humidity),'%');
-    if(d.CO2!=null) html+=`<div class="metric"><span class="metric-label">🌬️ CO₂</span><span class="metric-value ${co2Class(d.CO2)}">${d.CO2}<span class="unit"> ppm</span></span></div>`;
-    else html+=mrowEmpty();
+    if(mod.type==='outdoor'){
+      const fl=feelsLike(d.Temperature, d.Humidity, mod.windSpeed);
+      html+=`<div class="metric"><span class="metric-label">🌡️ Ressenti</span><span class="metric-value">${fl}<span class="unit">°C</span></span></div>`;
+    } else {
+      if(d.CO2!=null) html+=`<div class="metric"><span class="metric-label">🌬️ CO₂</span><span class="metric-value ${co2Class(d.CO2)}">${d.CO2}<span class="unit"> ppm</span></span></div>`;
+      else html+=mrowEmpty();
+    }
     if(d.Noise!=null) html+=mrow('🔊','Bruit',fmt(d.Noise),'dB');
     else html+=mrowEmpty();
     if(d.Pressure!=null) html+=mrow('⏱️','Pression',Math.round(d.Pressure),'hPa');
