@@ -463,7 +463,7 @@ function renderDashboard(devices, meteo){
     const d=mod.dashboard_data||{};
     if(mod.type==='NAModule1')modules.push({type:'outdoor',name:mod.module_name||'Extérieur',data:d,css:'card-outdoor',windSpeed:meteo.windSpeed});
     else if(mod.type==='NAModule4')modules.push({type:'extra',name:mod.module_name||'Intérieur',data:d,css:'card-extra'});
-    else if(mod.type==='NAModule3')modules.push({type:'rain',name:mod.module_name||'Pluie',data:d,css:'card-rain',forecast:rainForecast});
+    else if(mod.type==='NAModule3')modules.push({type:'rain',name:mod.module_name||'Pluie',data:d,css:'card-rain',forecast:meteo.rainForecast});
     else if(mod.type==='NAModule2')modules.push({type:'wind',name:mod.module_name||'Vent',data:d,css:'card-wind'});
   }
   for(const mod of modules){const c=createCard(mod);grid.appendChild(c);if(mod.type==="rain")renderRainBars(meteo.rainForecast);}
@@ -486,9 +486,9 @@ function renderDashboard(devices, meteo){
       </div>
     </div>
   `;
-  if(meteo.sunrise&&meteo.sunset) initSunArc(meteo.sunrise, meteo.sunset);
   grid.appendChild(clockCard);
   updateBigClock();
+  if(meteo.sunrise&&meteo.sunset) initSunArc(meteo.sunrise, meteo.sunset);
 }
 
 function createCard(mod){
