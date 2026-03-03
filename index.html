@@ -460,9 +460,9 @@ function drawMoon(phase){
 
   ctx.fillStyle='rgba(220,228,245,0.88)';
 
-  if(illum >= 0.999){
+  if(illum >= 0.97){
     ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
-  } else if(illum > 0.001){
+  } else if(illum > 0.03){
     const termRx = r * Math.abs(1 - 2*illum);
     const waxing = phase <= 0.5;
     ctx.beginPath();
