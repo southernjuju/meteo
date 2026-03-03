@@ -456,27 +456,26 @@ function drawMoon(phase){
   ctx.save();
   ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.clip();
 
-  // illumination 0=new, 1=full
   const illum = (1 - Math.cos(phase * Math.PI * 2)) / 2;
-  // terminator x offset: +r=nothing lit, 0=half, -r=fully lit
-  const tx = cx + r * (1 - 2 * illum);
 
   ctx.fillStyle='rgba(220,228,245,0.88)';
 
-  // Draw lit portion using two bezier curves forming the terminator
-  ctx.beginPath();
-  if(phase <= 0.5){
-    // Waxing: lit on right
-    ctx.arc(cx,cy,r,-Math.PI/2,Math.PI/2,false); // right half, clockwise
-    // terminator as ellipse: from bottom to top, curving left or right
-    ctx.bezierCurveTo(tx,cy+r, tx,cy-r, cx,cy-r);
-  } else {
-    // Waning: lit on left
-    ctx.arc(cx,cy,r,Math.PI/2,-Math.PI/2,false); // left half, clockwise  
-    ctx.bezierCurveTo(tx,cy-r, tx,cy+r, cx,cy+r);
+  if(illum >= 0.999){
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+  } else if(illum > 0.001){
+    const termRx = r * Math.abs(1 - 2*illum);
+    const waxing = phase <= 0.5;
+    ctx.beginPath();
+    if(waxing){
+      ctx.arc(cx,cy,r,-Math.PI/2,Math.PI/2,false);
+      ctx.ellipse(cx,cy,termRx,r,0,Math.PI/2,-Math.PI/2,true);
+    } else {
+      ctx.arc(cx,cy,r,Math.PI/2,-Math.PI/2,false);
+      ctx.ellipse(cx,cy,termRx,r,0,-Math.PI/2,Math.PI/2,true);
+    }
+    ctx.closePath();
+    ctx.fill();
   }
-  ctx.closePath();
-  ctx.fill();
 
   // Subtle craters
   ctx.fillStyle='rgba(0,0,0,0.06)';
