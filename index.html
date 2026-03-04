@@ -456,24 +456,26 @@ function drawMoon(phase){
   ctx.save();
   ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.clip();
 
-  const illum = (1 - Math.cos(phase * Math.PI * 2)) / 2;
+  const cosVal = Math.cos(phase * Math.PI * 2);
+  const termRx = r * Math.abs(cosVal);
+  const waxing = phase <= 0.5;
+  const lit = 'rgba(220,228,245,0.88)';
+  const dark = 'rgba(40,45,60,0.5)';
 
-  ctx.fillStyle='rgba(220,228,245,0.88)';
+  ctx.fillStyle = lit;
+  ctx.beginPath();
+  if(waxing){
+    ctx.arc(cx,cy,r,-Math.PI/2,Math.PI/2,false);
+  } else {
+    ctx.arc(cx,cy,r,Math.PI/2,-Math.PI/2,false);
+  }
+  ctx.closePath();
+  ctx.fill();
 
-  if(illum >= 0.97){
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
-  } else if(illum > 0.03){
-    const termRx = r * Math.abs(1 - 2*illum);
-    const waxing = phase <= 0.5;
+  if(termRx > 0.5){
+    ctx.fillStyle = cosVal > 0 ? dark : lit;
     ctx.beginPath();
-    if(waxing){
-      ctx.arc(cx,cy,r,-Math.PI/2,Math.PI/2,false);
-      ctx.ellipse(cx,cy,termRx,r,0,Math.PI/2,-Math.PI/2,true);
-    } else {
-      ctx.arc(cx,cy,r,Math.PI/2,-Math.PI/2,false);
-      ctx.ellipse(cx,cy,termRx,r,0,-Math.PI/2,Math.PI/2,true);
-    }
-    ctx.closePath();
+    ctx.ellipse(cx, cy, termRx, r, 0, 0, Math.PI*2);
     ctx.fill();
   }
 
